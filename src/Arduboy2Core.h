@@ -824,7 +824,7 @@ class Arduboy2Core
      *
      * \see Arduboy2Base::initRandomSeed()
      */
-    //static unsigned long generateRandomSeed();
+    static unsigned long generateRandomSeed();
 
     /** \brief
      * Delay for the number of milliseconds, specified as a 16 bit value.
