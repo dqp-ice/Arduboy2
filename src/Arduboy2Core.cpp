@@ -13,10 +13,73 @@
 //========== class Arduboy2Core ==========
 //========================================
 
-Arduboy2Core::Arduboy2Core() { }
+
 
 // Commands sent to the OLED display to initialize it
 const PROGMEM uint8_t Arduboy2Core::lcdBootProgram[] = {
+  // slimboy sets all registers to sane defaults since i2c
+  // displays usually havn't a reset input
+
+  // Display Off
+  0xAE,
+
+  // Set Display Clock Divisor v = 0xF0
+  // default is 0x80
+  0xD5, 0xF0,
+
+  // Set Multiplex Ratio v = 0x3F
+  0xA8, 0x3F,
+
+  // Set Display Offset v = 0
+  0xD3, 0x00,
+
+  // Set Start Line (0)
+  0x40,
+
+  // Charge Pump Setting v = enable (0x14)
+  // default is disabled
+  0x8D, 0x14,
+
+  // Set Segment Re-map (A0) | (b0001)
+  // default is (b0000)
+  0xA1,
+
+  // Set COM Output Scan Direction
+  0xC8,
+
+  // Set COM Pins v
+  0xDA, 0x12,
+
+  // Set Contrast v = 0xCF
+  0x81, 0xCF,
+
+  // Set Precharge = 0xF1
+  0xD9, 0xF1,
+
+  // Set VCom Detect
+  0xDB, 0x40,
+
+  // Entire Display ON
+  0xA4,
+
+  // Set normal/inverse display
+  0xA6,
+
+  // Display On
+  0xAF,
+
+  // set display mode = horizontal addressing mode (0x00)
+  0x20, 0x00,
+
+  // set col address range
+  0x21, 0x00, WIDTH-1,
+
+  // set page address range
+  0x22, 0x00, 0x07,
+  
+  
+  
+  /* old--------------------------------------------------<<<<<<<<<<<<<<<<<<<<<<<<<
   // boot defaults are commented out but left here in case they
   // might prove useful for reference
   //
@@ -78,8 +141,9 @@ const PROGMEM uint8_t Arduboy2Core::lcdBootProgram[] = {
 
   // set page address range
   // 0x22, 0x00, PAGE_ADDRESS_END
+  */
 };
-
+Arduboy2Core::Arduboy2Core() { }
 void Arduboy2Core::boot()
 {
   #ifdef ARDUBOY_SET_CPU_8MHZ
@@ -124,21 +188,20 @@ void Arduboy2Core::bootPins()
            _BV(B_BUTTON_BIT);
   // Port B INPUT or LOW (none)
   // Port B inputs
-  DDRB &= ~(_BV(B_BUTTON_BIT) | _BV(SPI_MISO_BIT));
+  DDRB &= ~(_BV(B_BUTTON_BIT) );
   // Port B outputs
-  DDRB |= _BV(RED_LED_BIT) | _BV(GREEN_LED_BIT) | _BV(BLUE_LED_BIT) |
-          _BV(SPI_MOSI_BIT) | _BV(SPI_SCK_BIT) | _BV(SPI_SS_BIT);
+  DDRB |= _BV(RED_LED_BIT) | _BV(GREEN_LED_BIT) | _BV(BLUE_LED_BIT);
 
   // Port C
   // Speaker: Not set here. Controlled by audio class
 
   // Port D INPUT_PULLUP or HIGH
-  PORTD |= _BV(CS_BIT);
+  //PORTD |= _BV(CS_BIT);
   // Port D INPUT or LOW
-  PORTD &= ~(_BV(RST_BIT));
+  //PORTD &= ~(_BV(RST_BIT));
   // Port D inputs (none)
   // Port D outputs
-  DDRD |= _BV(RST_BIT) | _BV(CS_BIT) | _BV(DC_BIT);
+  //DDRD |= _BV(RST_BIT) | _BV(CS_BIT) | _BV(DC_BIT);
 
   // Port E INPUT_PULLUP or HIGH
   PORTE |= _BV(A_BUTTON_BIT);
@@ -199,9 +262,40 @@ void Arduboy2Core::bootPins()
 
 #endif
 }
+//<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+#define I2CADDR 0x3c
+
+void i2c_send_byte(uint8_t data) {
+  TWDR = data;
+  TWCR = _BV(TWINT)  |  _BV(TWEN);
+  while( !(TWCR & _BV(TWINT)));
+}
+
+void i2c_start() {
+  TWCR = _BV(TWINT) | _BV(TWSTA)  | _BV(TWEN);
+  while( !(TWCR & _BV(TWINT)));
+  i2c_send_byte(I2CADDR<<1);
+}
+
+void i2c_stop(void) {
+  TWCR = _BV(TWINT) | _BV(TWEN) | _BV(TWSTO);
+  while( (TWCR & _BV(TWSTO)));
+}
 
 void Arduboy2Core::bootOLED()
 {
+  TWSR = 0;
+  TWBR = F_CPU/(2*100000)-8;
+
+  i2c_start();
+  i2c_send_byte(0x00);
+  for (uint8_t i = 0; i < sizeof(lcdBootProgram); i++) 
+    i2c_send_byte(pgm_read_byte(lcdBootProgram + i));
+  i2c_stop();
+  
+  //  TWBR = F_CPU/(2*400000)-8;
+  TWBR = 1; // 12 = 400kHz
+  /*
   // reset the display
   delayShort(5); // reset pin should be low here. let it stay low a while
   bitSet(RST_PORT, RST_BIT); // set high to come out of reset
@@ -217,8 +311,9 @@ void Arduboy2Core::bootOLED()
     SPItransfer(pgm_read_byte(lcdBootProgram + i));
   }
   LCDDataMode();
+  */
 }
-
+/*
 void Arduboy2Core::LCDDataMode()
 {
   bitSet(DC_PORT, DC_BIT);
@@ -228,25 +323,25 @@ void Arduboy2Core::LCDCommandMode()
 {
   bitClear(DC_PORT, DC_BIT);
 }
-
+*/
 // Initialize the SPI interface for the display
 void Arduboy2Core::bootSPI()
 {
 // master, mode 0, MSB first, CPU clock / 2 (8MHz)
-  SPCR = _BV(SPE) | _BV(MSTR);
-  SPSR = _BV(SPI2X);
+  //SPCR = _BV(SPE) | _BV(MSTR);
+ // SPSR = _BV(SPI2X);
 }
-
+/*
 // Write to the SPI bus (MOSI pin)
 void Arduboy2Core::SPItransfer(uint8_t data)
 {
   SPDR = data;
-  /*
+  
    * The following NOP introduces a small delay that can prevent the wait
    * loop from iterating when running at the maximum speed. This gives
    * about 10% more speed, even if it seems counter-intuitive. At lower
    * speeds it is unnoticed.
-   */
+   
   asm volatile("nop");
   while (!(SPSR & _BV(SPIF))) { } // wait
 }
@@ -273,7 +368,7 @@ void Arduboy2Core::safeMode()
     while (true) { }
   }
 }
-
+*/
 
 /* Power Management */
 
@@ -288,11 +383,11 @@ void Arduboy2Core::bootPowerSaving()
 {
   // disable Two Wire Interface (I2C) and the ADC
   // All other bits will be written with 0 so will be enabled
-  PRR0 = _BV(PRTWI) | _BV(PRADC);
+  //PRR0 = _BV(PRTWI) | _BV(PRADC);
   // disable USART1
-  PRR1 |= _BV(PRUSART1);
+  //PRR1 |= _BV(PRUSART1);
 }
-
+/*
 // Shut down the display
 void Arduboy2Core::displayOff()
 {
@@ -303,7 +398,7 @@ void Arduboy2Core::displayOff()
   delayShort(250);
   bitClear(RST_PORT, RST_BIT); // set display reset pin low (reset state)
 }
-
+*/
 // Restart the display after a displayOff()
 void Arduboy2Core::displayOn()
 {
@@ -315,15 +410,31 @@ void Arduboy2Core::displayOn()
 
 void Arduboy2Core::paint8Pixels(uint8_t pixels)
 {
-  SPItransfer(pixels);
+  i2c_start();
+  i2c_send_byte(0x40);
+  i2c_send_byte(pixels);
+  i2c_stop();
+  //SPItransfer(pixels);
 }
 
 void Arduboy2Core::paintScreen(const uint8_t *image)
 {
-  for (int i = 0; i < (HEIGHT*WIDTH)/8; i++)
+  // I2C
+  for (uint8_t i=0; i<(WIDTH*HEIGHT/(16*8));) {
+    // send a bunch of data in one xmission
+    i2c_start();
+    i2c_send_byte(0x40);
+    for(uint8_t x=0;x<16;x++,i++) {
+      TWDR = pgm_read_byte(image+i);
+      TWCR = _BV(TWINT) |  _BV(TWEN);
+      while( !(TWCR & _BV(TWINT)));
+    }
+    i2c_stop();
+  }
+  /*for (int i = 0; i < (HEIGHT*WIDTH)/8; i++)
   {
     SPItransfer(pgm_read_byte(image + i));
-  }
+  }*/
 }
 
 // paint from a memory buffer, this should be FAST as it's likely what
@@ -334,7 +445,20 @@ void Arduboy2Core::paintScreen(const uint8_t *image)
 // It is specifically tuned for a 16MHz CPU clock and SPI clocking at 8MHz.
 void Arduboy2Core::paintScreen(uint8_t image[], bool clear)
 {
-  uint16_t count;
+  // I2C
+  uint16_t i;
+  i2c_start();
+  TWDR = 0x40;
+  TWCR = _BV(TWINT) | _BV(TWEN);
+  for (uint16_t i=0; i<(WIDTH*HEIGHT/8);i++) {
+    while( !(TWCR & _BV(TWINT)));
+    TWDR = image[i];
+    TWCR = _BV(TWINT) | _BV(TWEN);
+    if(clear) image[i] = 0;
+  }
+  while( !(TWCR & _BV(TWINT)));
+  i2c_stop();
+  /*uint16_t count;
 
   asm volatile (
     "   ldi   %A[count], %[len_lsb]               \n\t" //for (len = WIDTH * HEIGHT / 8)
@@ -356,9 +480,9 @@ void Arduboy2Core::paintScreen(uint8_t image[], bool clear)
       [len_msb] "M"   (WIDTH * (HEIGHT / 8 * 2) >> 8),   // 8: pixels per byte
       [len_lsb] "M"   (WIDTH * (HEIGHT / 8 * 2) & 0xFF), // 2: for delay loop multiplier
       [clear]   "r"   (clear)
-  );
+  );*/
 }
-#if 0
+/*#if 0
 // For reference, this is the "closed loop" C++ version of paintScreen()
 // used prior to the above version.
 void Arduboy2Core::paintScreen(uint8_t image[], bool clear)
@@ -397,19 +521,33 @@ void Arduboy2Core::paintScreen(uint8_t image[], bool clear)
   }
   while (!(SPSR & _BV(SPIF))) { } // wait for the last byte to be sent
 }
-#endif
+#endif */
 
 void Arduboy2Core::blank()
 {
-  for (int i = 0; i < (HEIGHT*WIDTH)/8; i++)
-    SPItransfer(0x00);
+  for (uint8_t i=0; i<(WIDTH*HEIGHT/(16*8)); i++) {
+    i2c_start();
+    i2c_send_byte(0x40);
+    for(uint8_t x=0;x<16;x++) {
+      TWDR = 0;
+      TWCR = _BV(TWINT) |  _BV(TWEN);
+      while( !(TWCR & _BV(TWINT)));
+    }
+    i2c_stop();
+  }
+ // for (int i = 0; i < (HEIGHT*WIDTH)/8; i++)
+  //  SPItransfer(0x00);
 }
 
 void Arduboy2Core::sendLCDCommand(uint8_t command)
 {
-  LCDCommandMode();
-  SPItransfer(command);
-  LCDDataMode();
+  i2c_start();
+  i2c_send_byte(0x00);
+  i2c_send_byte(command);
+  i2c_stop();
+  //LCDCommandMode();
+  //SPItransfer(command);
+  //LCDDataMode();
 }
 
 // invert the display or set to normal
@@ -588,12 +726,12 @@ void Arduboy2Core::delayShort(uint16_t ms)
 
 void Arduboy2Core::exitToBootloader()
 {
-  cli();
+  /*cli();
   // set bootloader magic key
   // storing two uint8_t instead of one uint16_t saves an instruction
   //  when high and low bytes of the magic key are the same
   *(uint8_t *)MAGIC_KEY_POS = lowByte(MAGIC_KEY);
-  *(uint8_t *)(MAGIC_KEY_POS + 1) = highByte(MAGIC_KEY);
+  *(uint8_t *)(MAGIC_KEY_POS + 1) = highByte(MAGIC_KEY);*/
   // enable watchdog timer reset, with 16ms timeout
   wdt_reset();
   WDTCSR = (_BV(WDCE) | _BV(WDE));
@@ -608,16 +746,16 @@ void Arduboy2Core::exitToBootloader()
 
 void Arduboy2NoUSB::mainNoUSB()
 {
-  // disable USB
+  /*// disable USB
   UDCON = _BV(DETACH);
   UDIEN = 0;
   UDINT = 0;
   USBCON = _BV(FRZCLK);
   UHWCON = 0;
   power_usb_disable();
-
+*/
   init();
-
+/*
   // This would normally be done in the USB code that uses the TX and RX LEDs
   TX_RX_LED_INIT;
   TXLED0;
@@ -634,7 +772,7 @@ void Arduboy2NoUSB::mainNoUSB()
   if (bitRead(DOWN_BUTTON_PORTIN, DOWN_BUTTON_BIT) == 0) {
     Arduboy2Core::exitToBootloader();
   }
-
+*/
   // The remainder is a copy of the Arduino main() function with the
   // USB code and other unneeded code commented out.
   // init() was called above.
