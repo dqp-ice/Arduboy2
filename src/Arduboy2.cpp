@@ -52,7 +52,7 @@ void Arduboy2Base::begin()
 
 void Arduboy2Base::flashlight()
 {
-  if (!pressed(UP_BUTTON)) {
+  /*if (!pressed(UP_BUTTON)) {
     return;
   }
 
@@ -68,7 +68,7 @@ void Arduboy2Base::flashlight()
 
   while (true) {
     idle();
-  }
+  }*/
 }
 
 void Arduboy2Base::systemButtons()
@@ -254,7 +254,7 @@ bool Arduboy2Base::nextFrame()
 
   return true;
 }
-
+/*
 bool Arduboy2Base::nextFrameDEV()
 {
   bool ret = nextFrame();
@@ -266,7 +266,7 @@ bool Arduboy2Base::nextFrameDEV()
       TXLED0;
   }
   return ret;
-}
+}*/
 
 int Arduboy2Base::cpuLoad()
 {
