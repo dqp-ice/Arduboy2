@@ -36,7 +36,7 @@
 
 // ----- Arduboy pins -----
 #ifdef ARDUBOY_10
-
+/*     nepotrebno<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 #define PIN_CS 12       // Display CS Arduino pin number
 #define CS_PORT PORTD   // Display CS port
 #define CS_BIT PORTD6   // Display CS physical bit number
@@ -48,7 +48,7 @@
 #define PIN_RST 6       // Display reset Arduino pin number
 #define RST_PORT PORTD  // Display reset port
 #define RST_BIT PORTD7  // Display reset physical bit number
-
+*/
 #define RED_LED 10   /**< The pin number for the red color in the RGB LED. */
 #define GREEN_LED 11 /**< The pin number for the greem color in the RGB LED. */
 #define BLUE_LED 9   /**< The pin number for the blue color in the RGB LED. */
@@ -309,14 +309,14 @@ int main() { \
 
 // A replacement for the Arduino main() function that eliminates the USB code.
 // Used by the ARDUBOY_NO_USB macro.
-class Arduboy2NoUSB
+/*class Arduboy2NoUSB
 {
   friend int main();
 
   private:
     static void mainNoUSB();
 };
-
+*/
 
 /** \brief
  * Lower level functions generally dealing directly with the hardware.
@@ -332,7 +332,7 @@ class Arduboy2NoUSB
  * that this may eliminate the need to create an entire local copy of the
  * library, in order to extend the functionality, in most circumstances.
  */
-class Arduboy2Core : public Arduboy2NoUSB
+class Arduboy2Core 
 {
   friend class Arduboy2Ex;
 
@@ -405,28 +405,6 @@ class Arduboy2Core : public Arduboy2NoUSB
      * \see LCDDataMode() LCDCommandMode() sendLCDCommand() SPItransferAndRead()
      */
     static void SPItransfer(uint8_t data);
-
-    /** \brief
-     * Transfer a byte to, and read a byte from, the SPI bus.
-     *
-     * \param data The byte to be sent.
-     *
-     * \return The byte that was received.
-     *
-     * \details
-     * This function does the same as the `SPItransfer()` function but also
-     * reads and returns the byte of data that was received during the
-     * transfer.
-     *
-     * This function is of no use for a standard Arduboy, since only the
-     * display is connected to the SPI bus and data cannot be received from
-     * the display. It has been provided for use with homemade or expanded
-     * units that have had additional peripherals added to the SPI bus that
-     * are capable of sending data.
-     *
-     * \see SPItransfer()
-     */
-    static uint8_t SPItransferAndRead(uint8_t data);
 
     /** \brief
      * Turn the display off.
@@ -846,7 +824,7 @@ class Arduboy2Core : public Arduboy2NoUSB
      *
      * \see Arduboy2Base::initRandomSeed()
      */
-    static unsigned long generateRandomSeed();
+    //static unsigned long generateRandomSeed();
 
     /** \brief
      * Delay for the number of milliseconds, specified as a 16 bit value.
@@ -878,6 +856,7 @@ class Arduboy2Core : public Arduboy2NoUSB
      * \see ARDUBOY_NO_USB
      */
     static void exitToBootloader();
+    void static mainNoUSB();
 
   protected:
     // internals
@@ -887,7 +866,7 @@ class Arduboy2Core : public Arduboy2NoUSB
     static void bootPins();
     static void bootPowerSaving();
 
-    static const PROGMEM uint8_t lcdBootProgram[];
+    ///static const PROGMEM uint8_t lcdBootProgram[];
 };
 
 #endif
